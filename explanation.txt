@@ -1,1 +1,18 @@
-Put your Project 5 brief explanation, as directed, here.
+I am accessing the EventBrite API and Gathering followings:
+
+1. Gathering Events Around Ann Arbor
+- Using "/events/search/" end point, events around Ann Arbor and within a specific start date are collected
+- For each event, I am going to collect the event name, the organizer id, and the event start date
+- Events data are written to a csv file called "Events_Around_AnnArbor.csv"
+- The CSV file has three columns and they are "Name", "Org ID", "Start Date"
+- URL https://www.eventbrite.com/developer/v3/endpoints/events/
+- OAuth2 is used
+
+2. Gathering Organizer SNS for events collected in the step1
+- Using "/organizers/:id" end point, an organizer information is collected for each event
+- For each organizer, I am going to collect the organizer name, the twitter account, and the facebook account
+- Organizer data are written to a csv file called "Organization_Info.csv"
+- The CSV file has four columns and they are "Org ID", "Name", "Twitter", "Facebook"
+- If the API returns no value for one of the columns, it writes "None"
+- URL https://www.eventbrite.com/developer/v3/endpoints/organizers/
+- OAuth2 is used

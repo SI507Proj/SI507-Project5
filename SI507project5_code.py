@@ -5,11 +5,12 @@ import webbrowser
 import json
 import logging, sys
 import datetime
-#from secret_data import app_id, app_secret
+import csv
+from secret_data import app_id, app_secret
 
 # for EventBrite oAuth2
-APP_ID = "3LVEN2GBJZD45CRZA3"
-APP_SECRET = "YB2G7QMYSKO5ADERKKNJCYYTNOMA6NJLGSY6LWEYAIMEBWW3QG"
+APP_ID = app_id
+APP_SECRET = app_secret
 AUTHORIZATION_BASE_URL = "https://www.eventbrite.com/oauth/authorize"
 TOKEN_URL = "https://www.eventbrite.com/oauth/token"
 REDIRECT_URI = 'https://www.programsinformationpeople.org/runestone/oauth'
@@ -34,6 +35,9 @@ try:
         CACHE_DICTION = json.loads(cache_json)
 except:
     CACHE_DICTION = {}
+
+def clear_cache():
+    CACHE_DICTION.clear()
 
 def has_cache_expired(timestamp_str):
     """Check if cache timestamp is over expire_in_days old"""
@@ -147,8 +151,8 @@ class EventBriteFinder(object):
         # we use 'global' to tell python that we will be modifying this global variable
         if not params:
             params = {}
-
         params["token"] = self.token
+
         unique_ident = self.__params_unique_combination(baseurl, params)
         if unique_ident not in CACHE_DICTION:
             logging.debug("unique_ident: {} Not in Cache, request it".format(unique_ident))
@@ -156,8 +160,14 @@ class EventBriteFinder(object):
             resp_text = json.loads(resp.text)
             set_in_cache(unique_ident, resp_text)
 
-        logging.debug("Response: {}".format(len(CACHE_DICTION[unique_ident])))
         return CACHE_DICTION[unique_ident]
+
+    def write_data_to_csv(self, file_name, data_list, data_header):
+        with open(file_name, 'w') as csv_file:
+            wr = csv.writer(csv_file)
+            wr.writerow(data_header)
+            logging.debug("data_list: {} length: {}".format(data_list, len(data_list)))
+            wr.writerows(data_list)
 
 ## Make sure to run your code and write CSV files by the end of the program.
 
@@ -170,14 +180,60 @@ if __name__ == '__main__':
     date = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=60)
     logging.debug("date: {} type: {}".format(date, type(date)))
     params1 = {
-        "location.address" : "500 S State St, Ann Arbor, MI 48109",
+        "location.address": "500 S State St, Ann Arbor, MI 48109",
         "location.within": str(150)+"mi",
         "start_date.range_end": date.isoformat()
     }
     logging.debug("params1: {}".format(params1))
 
     # data2
-    
     # initialize to setup a session using OAuth2
     event_brite_finder = EventBriteFinder()
-    event_brite_finder.make_request(endpt1, params1)
+    ev_results1 = event_brite_finder.make_request(endpt1, params1)
+    logging.debug("Response: {}".format(len(ev_results1['resp'])))
+    events = ev_results1['resp']['events']
+
+    # Write data to CSV
+    name = "None"
+    org_id = "None"
+    start = "None"
+    header1 = ["Name", "Org ID", "Start Date"]
+    data1_list = []
+    for event in events:
+        name = event["name"]["text"]
+        org_id = event["organizer_id"]
+        start = event["start"]["local"]
+        data1_list.append([name, org_id, start])
+    event_brite_finder.write_data_to_csv("Events_Around_AnnArbor.csv", data1_list, header1)
+
+
+    # for each event find organizer name and SNS information
+    header2 = ["Org ID", "Name", "Twitter", "Facebook"]
+    data2_list = []
+    for event in events:
+        ev_org_id = "None"
+        ev_org_id = event['organizer_id']
+        # logging.debug("ev_org_id: {}".format(ev_org_id))
+        endpt2 = baseurl+"/organizers/{}/".format(ev_org_id)
+        # request data
+        ev_results2 = event_brite_finder.make_request(endpt2)
+        org_info = ev_results2['resp']
+        org_name = "None"
+        org_twitter = "None"
+        org_facebook = "None"
+        if 'name' in org_info:
+            org_name = org_info['name']
+        if 'twitter' in org_info:
+            org_twitter = org_info['twitter']
+        if 'facebook' in org_info:
+            org_facebook = org_info['facebook']
+        if org_name is None:
+            org_name = "None"
+        logging.debug("Name: {} twitter: {} facebook: {}".format(org_name, org_twitter, org_facebook))
+        data2_list.append([ev_org_id, org_name, org_twitter, org_facebook])
+
+    # Write data to CSV
+    event_brite_finder.write_data_to_csv("Organization_Info.csv", data2_list, header2)
+
+
+
